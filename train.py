@@ -9,9 +9,6 @@ import torch.nn as nn
 MAXEPOCH=100
 BATCH=1
 
-data = np.load('data/SSdata.npz',allow_pickle=True)
-NTRAIN = int(len(data['aa'])*0.7)
-
 class CNN(nn.Module):
     def __init__(self, nlayer=4, dropout=0.1):
         super().__init__()
@@ -44,17 +41,25 @@ class CNN(nn.Module):
         return pred
 
 class DataSet(torch.utils.data.Dataset):
-    def __init__(self,data, idx):
-        self.tags = data['tag'][idx]
-        self.SSs = data['SS'][idx]
-        self.seqs = data['aa'][idx]
+    def __init__(self, datalist, idx):
+        self.tags = datalist 
 
     def __len__(self):
         return len(self.tags)
 
     def __getitem__(self,index):
-        seq1hot = np.transpose(np.eye(20)[self.seqs[index]],(1,0)) # 20xnres
-        #SS1hot = np.transpose(np.eye(3)[self.SSs[index]],(1,0))
+        npz = 'data/'+self.tags[index]+'.npz'
+        data = np.load(npz,allow_pickle=True)
+
+        aas = 'ACDEFGHIKLMNPQRSTVWYX'
+        SS3 = 'HEC'
+        
+        seqs = [AAs.index(a) for a in  data['seqs']]
+        SSs  = [SS3.index(a) for a in data['SSs']]
+        
+        seq1hot = np.transpose(np.eye(21)[seqs],(1,0)) # 20xnres
+        SS1hot = np.transpose(np.eye(3)[SSs],(1,0))
+        
         return seq1hot, self.SSs[index], seq1hot.shape[1]
     
 def collate(samples):
@@ -74,8 +79,11 @@ model = CNN()
 model.to(device)
 
 ## load dataset
-trainset = DataSet(data, range(NTRAIN) )
-validset = DataSet(data, range(NTRAIN, len(data['aa'])) )
+trainlist = np.load('data/train.npy')
+validlist = np.load('data/valid.npy')
+
+trainset = DataSet(trainlist)
+validset = DataSet(validlist)
 
 generator_params = {
     'shuffle': True,
